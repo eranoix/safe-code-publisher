@@ -1,0 +1,6 @@
+# Output trees are artefacts: rebuilt from scratch on every run.
+out/
+example/.stage/
+.venv/
+__pycache__/
+*.pyc

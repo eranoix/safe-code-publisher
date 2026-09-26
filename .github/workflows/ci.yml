@@ -1,0 +1,153 @@
+# The gate must be proved in both directions: a gate that silently stops
+# blocking still passes every test that only checks for success. The `gate`
+# job asserts the leaked example FAILS for the stated reason, then that the
+# fixed one passes; the `secrets` job runs an independent scanner over this
+# repository itself.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+
+  gate:
+    name: the gate closes, and opens
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # Node is for the last step only: the published tree has to still run.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - run: python3 -m pip install --disable-pip-version-check pyyaml
+
+      - name: the leaked state must be refused
+        run: |
+          # `set +e` because a non-zero exit is the expected outcome here.
+          set +e
+          ./example/run.sh > leaked.log 2>&1
+          status=$?
+          set -e
+          cat leaked.log
+
+          if [ "$status" -eq 0 ]; then
+            echo "::error::the gate certified a tree with planted leaks in it"
+            exit 1
+          fi
+
+          # Exit status alone is not evidence: a missing interpreter or a broken
+          # fixture also exits non-zero. The output has to carry the gate's verdict.
+          grep -q 'BLOCKED' leaked.log || {
+            echo "::error::non-zero exit, but not from the gate — the build broke for another reason"
+            exit 1
+          }
+
+          # And it has to have blocked on the leak this job is about: the stale
+          # build artifact that no source-level transformation reaches.
+          grep -q 'vendor/app.min.js' leaked.log || {
+            echo "::error::the gate blocked, but not on the finding this asserts"
+            exit 1
+          }
+
+          # Three findings: one internal reference and two credentials matched
+          # by shape. A drop to one or two means a whole detector went quiet.
+          grep -q '3 finding(s)' leaked.log || {
+            echo "::error::the gate blocked, but not with the expected finding count"
+            exit 1
+          }
+
+      - name: apply the fix documented in README.md
+        run: |
+          # Written as an anchored edit rather than a checked-in patch file, so
+          # that a drift between the manifest and the prose that explains it
+          # fails loudly here instead of silently editing the wrong line.
+          python3 - <<'PY'
+          import pathlib
+          p = pathlib.Path("example/manifest.yaml")
+          t = p.read_text(encoding="utf-8")
+          anchor = "      #    here, and fixing it is the point of the exercise."
+          assert anchor in t, "anchor not found — manifest and README.md disagree"
+          p.write_text(t.replace(anchor, anchor + '\n      - "vendor/app.min.js"'),
+                       encoding="utf-8")
+          PY
+          git --no-pager diff -- example/manifest.yaml
+
+      - name: the fixed state must be certified
+        run: |
+          ./example/run.sh | tee fixed.log
+          grep -q 'CLEAN' fixed.log || {
+            echo "::error::the gate did not certify the fixed tree"
+            exit 1
+          }
+          # The high-false-positive tier must survive as a listing and must not
+          # have become blocking: a gate that stops on every sentence
+          # containing an ordinary word is a gate people learn to bypass.
+          grep -q 'REVIEW' fixed.log || {
+            echo "::error::the review tier stopped being reported"
+            exit 1
+          }
+
+      - name: the published tree still runs
+        working-directory: out/riverbend-rentals
+        # The fixture's tests use node:test and the standard library, so no
+        # install step is needed.
+        run: npm test
+
+  secrets:
+    name: second line — independent secret scan
+    runs-on: ubuntu-latest
+    env:
+      GITLEAKS_VERSION: '8.30.1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history: a secret removed in a later commit is still published
+          # by the commit that introduced it.
+          fetch-depth: 0
+
+      - name: install gitleaks
+        run: |
+          curl -sSfL \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C /usr/local/bin gitleaks
+          gitleaks version
+
+      - name: write the scan config
+        run: |
+          # Two narrow exclusions: `example/` is a deliberate corpus of planted leaks
+          # (what the `gate` job asserts is detected), and one rule in gate.py, whose
+          # fixture table holds the PEM header as a literal (scoped with
+          # `targetRules`). Everything else is in scope, the tooling included.
+          cat > gitleaks.toml <<'TOML'
+          [extend]
+          useDefault = true
+
+          [[allowlists]]
+          description = "The example fixture exists to contain leaks; the gate job asserts they are found."
+          paths = ['''^example/''']
+
+          [[allowlists]]
+          description = "gate.py's own table of known fixtures, quoted there so the gate does not block on them."
+          targetRules = ["private-key"]
+          paths = ['''^lib/gate\.py$''']
+          TOML
+          cat gitleaks.toml
+
+      - name: scan the working tree
+        run: gitleaks dir . --config gitleaks.toml --redact --no-banner --verbose
+
+      - name: scan the history
+        run: gitleaks git . --config gitleaks.toml --redact --no-banner --verbose
