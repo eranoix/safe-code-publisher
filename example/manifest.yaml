@@ -1,0 +1,50 @@
+# The source is always a git ref, never the working directory, so an
+# untracked file can never enter by accident. That is why `src` points at a
+# staged repository: run `example/stage.sh` once to create it.
+#
+# `exclude` is applied before substitution. Prefer to exclude too much:
+# a gap in the public repo is a gap, a leftover is a leak.
+
+# Project-specific gate settings. All optional; absent, the gate is at its
+# strictest. See "Configuring it for your own repository" in README.md.
+#
+# gate:
+#   ref_prefixes: [ACME]            # ticket keys: ACME-42 blocks by rule
+#   ref_fixtures: [test/board.test.js]   # where a key IS the test data
+#   first_party_vendor: [acme]      # vendor/acme/ is our code, scan it
+#   secret_fixtures:                # fake secrets planted on purpose
+#     - { path: redact.test.js, value: ghp_fake }
+
+projects:
+
+  acme-cycle-rentals:
+    src: example/.stage/private-app
+    ref: HEAD
+    public_repo: riverbend-rentals
+    description: >-
+      Small booking service for a bike rental shop — inventory, day and week
+      rentals, deposit holds and receipts.
+    exclude:
+      # Internal operations doc: substitution would keep every sentence and only
+      # swap the nouns, and the sentences are the sensitive part.
+      - "docs/runbook.md"
+
+      # A dated backup: the directory NAME carries the board key and the date,
+      # and a gate that reads file bytes never looks at it.
+      - "deploy/ACME-138-backup-20260721"
+      - "deploy/ACME-138-backup-20260721/**"
+
+      # ── MISSING ON PURPOSE. See example/README.md: the first build fails
+      #    here, and fixing it is the point of the exercise.
+
+    # Applied after substitution, over the output tree. This is where the
+    # changes live that the private repository never receives — so the running
+    # system is untouched and the pipeline stays reproducible.
+    patches:
+      # Order is explicit because it matters: the public README is installed
+      # before the internal-reference sweep runs, so the sweep's "nothing left
+      # behind" check is not tripped by prose that is about to be replaced.
+      - 001-readme-and-ci.py
+      - 002-strip-internal-refs.py
+      - 003-config-for-clean-clone.py
+      - 099-license.py

@@ -1,0 +1,17 @@
+{
+  "name": "acme-cycle-rentals",
+  "version": "2.4.0",
+  "private": true,
+  "description": "Booking service for Acme Cycle Rentals",
+  "author": "Marina Alvez <marina.alvez@acme-rentals.example>",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test test/*.test.js",
+    "seed": "node scripts/seed.js",
+    "build:web": "esbuild src/web/app.js --bundle --minify --outfile=vendor/app.min.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

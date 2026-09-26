@@ -1,0 +1,25 @@
+{
+  "site": {
+    "name": "Acme Cycle Rentals",
+    "publicUrl": "https://rentals.acme-rentals.example",
+    "adminUrl": "https://admin.acme-rentals.example",
+    "supportPhone": "555-0142"
+  },
+  "server": {
+    "port": 8080,
+    "dataDir": "/srv/acme/rentals/var"
+  },
+  "storage": {
+    "bucket": "acme-rentals-receipts",
+    "accessKeyId": "AKIAIOSFODNN7EXAMPLE",
+    "secretAccessKey": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+  },
+  "payments": {
+    "provider": "stripe",
+    "webhookSigningKey": "-----BEGIN EC PRIVATE KEY-----\nTHIS-IS-NOT-A-KEY-example-fixture-for-the-gate\n-----END EC PRIVATE KEY-----\n"
+  },
+  "mail": {
+    "from": "marina.alvez@acme-rentals.example",
+    "smtpHost": "203.0.113.47"
+  }
+}

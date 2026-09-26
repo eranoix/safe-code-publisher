@@ -1,0 +1,129 @@
+# The substitution map for the example. Every value on both sides is
+# invented; a real map is the list of all the private data you are hiding,
+# so it lives outside any repository that goes public.
+#
+# It is not called `identities.yaml` because `lib/gate.py` refuses to scan
+# any tree containing a file of that name, at any depth: under that name
+# this file would fail this repository's own gate.
+#
+# Each entry:
+#   match    literal (default), or a regex when `re: true`
+#   replace  the fictional stand-in the scrub writes
+#   tier     block: the gate fails on it; review: only listed for a human
+#   why      why it is sensitive
+#
+# ORDER MATTERS: substitution runs top to bottom, so the most specific entry
+# comes first (address, then domain, then slug, then brand); reversed, an
+# address would be half-rewritten and still traceable.
+#
+# A `block` entry with NO `replace` is deliberate: there is no safe stand-in,
+# so the gate blocks it and a transformation in patches/ has to remove it.
+
+persona:
+  # One coherent persona. A demo has to read like a product, not like a
+  # redacted document.
+  person_primary:   "Alex Doe"
+  person_secondary: "Robin Park"
+  org:              "Riverbend Cycles"
+  domain:           "riverbend.example"      # .example is reserved (RFC 2606)
+  app_host:         "app.riverbend.example"
+
+entries:
+
+  # Addresses: most specific first.
+  - match: "marina.alvez@acme-rentals.example"
+    replace: "alex@riverbend.example"
+    tier: block
+    why: "owner's work address; it is also the package.json author field"
+
+  - match: "tobias.grant@acme-rentals.example"
+    replace: "robin@riverbend.example"
+    tier: block
+    why: "second staff address"
+
+  - match: "dana.olsson@example.com"
+    replace: "kim.farrow@example.com"
+    tier: block
+    why: "a customer. Third-party personal data is the one class where a leak
+          is not only embarrassing but someone else's problem."
+
+  - match: "rentals.acme-rentals.example"
+    replace: "app.riverbend.example"
+    tier: block
+  - match: "admin.acme-rentals.example"
+    replace: "admin.riverbend.example"
+    tier: block
+  - match: "acme-rentals.example"
+    replace: "riverbend.example"
+    tier: block
+    why: "production domain; appears in nginx, compose and the storefront"
+
+  # The domain rule does not reach these slugs (the npm package and the
+  # receipts bucket): a brand leaks in more spellings than it has hostnames.
+  - match: "acme-cycle-rentals"
+    replace: "riverbend-rentals"
+    tier: block
+  - match: "acme-rentals"
+    replace: "riverbend"
+    tier: block
+
+  - match: "Acme Cycle Rentals"
+    replace: "Riverbend Cycles"
+    tier: block
+  - match: "Acme"
+    replace: "Riverbend"
+    tier: block
+    why: "bare brand, last so the compound forms above win"
+
+  - match: "Marina Alvez"
+    replace: "Alex Doe"
+    tier: block
+  - match: "Marina"
+    replace: "Alex"
+    tier: block
+  - match: "Tobias Grant"
+    replace: "Robin Park"
+    tier: block
+  - match: "Tobias"
+    replace: "Robin"
+    tier: block
+  - match: "Dana Olsson"
+    replace: "Kim Farrow"
+    tier: block
+
+  # Both sides sit in ranges reserved for documentation (RFC 5737, and the
+  # fictional 555-01xx block), so these values are verifiably not anyone's.
+  - match: "203.0.113.47"
+    replace: "198.51.100.10"
+    tier: block
+    why: "the shop's box; it is in nginx, compose and the runbook"
+  - match: "555-0142"
+    replace: "555-0100"
+    tier: block
+  - match: "555-0143"
+    replace: "555-0101"
+    tier: block
+  - match: "555-0177"
+    replace: "555-0102"
+    tier: block
+
+  - match: "/srv/acme/rentals"
+    replace: "/srv/app"
+    tier: block
+
+  # No `replace` on purpose: renaming `ACME-42` to `RIV-42` would publish the
+  # same fact in a costume. The scrub skips it, the gate blocks it, and a
+  # transformation in patches/ removes it.
+  - match: 'ACME-\d+'
+    re: true
+    tier: block
+    why: "internal board key, in comments, in a bundle banner, and in a
+          directory NAME under deploy/"
+
+  # Tier review: a real name that is also an ordinary word. Blocking it would
+  # flag every sentence using the verb; the gate only lists it for a human.
+  - match: '\bGrant\b'
+    re: true
+    tier: review
+    why: "surname of a real person here, but also the ordinary verb — see the
+          deposit comment in src/routes/rentals.js"

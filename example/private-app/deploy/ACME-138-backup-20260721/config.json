@@ -1,0 +1,5 @@
+{
+  "note": "frozen copy taken before the pricing rewrite; keep until the season closes",
+  "server": { "port": 8080, "dataDir": "/srv/acme/rentals/var" },
+  "payments": { "provider": "stripe", "webhookSigningKey": "-----BEGIN EC PRIVATE KEY-----\nTHIS-IS-NOT-A-KEY-example-fixture-for-the-gate\n-----END EC PRIVATE KEY-----\n" }
+}

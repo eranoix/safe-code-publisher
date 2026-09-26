@@ -1,0 +1,11 @@
+services:
+  rentals:
+    build: ..
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - /srv/acme/rentals/var:/srv/acme/rentals/var
+    environment:
+      PUBLIC_URL: https://rentals.acme-rentals.example
+      SMTP_HOST: 203.0.113.47

@@ -1,0 +1,22 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Acme Cycle Rentals — book a bike</title>
+<link rel="stylesheet" href="styles.css">
+<main>
+  <h1>Acme Cycle Rentals</h1>
+  <p class="lede">City, gravel and cargo bikes, by the day or the week.</p>
+
+  <form id="booking">
+    <label>Category <select name="category"></select></label>
+    <label>From <input type="date" name="from" required></label>
+    <label>Days <input type="number" name="days" min="1" value="1"></label>
+    <button type="submit">Check price</button>
+  </form>
+
+  <output id="quote"></output>
+
+  <footer>
+    Questions? 555-0142 · <a href="mailto:marina.alvez@acme-rentals.example">mail the shop</a>
+  </footer>
+</main>
+<script src="app.js" type="module"></script>
